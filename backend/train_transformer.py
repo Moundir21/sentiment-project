@@ -125,7 +125,10 @@ training_args = TrainingArguments(
 
     fp16=True,
 
-    logging_steps=100
+    logging_steps=100,
+
+    report_to=[],  # هنا نوقف WandB
+
 )
 
 
