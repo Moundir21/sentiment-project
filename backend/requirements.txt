@@ -1,0 +1,15 @@
+pandas
+numpy
+scikit-learn
+torch
+transformers
+fastapi
+uvicorn
+emoji
+joblib
+matplotlib
+seaborn
+arabert
+camel-tools
+emoji
+
