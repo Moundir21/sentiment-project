@@ -157,6 +157,6 @@ def load_data(path):
     df = pd.read_csv(path)
 
     # تنظيف النصوص
-    df["clean_text"] = df["text"].apply(clean_text)
+    df["clean_text"] = df["comment"].apply(clean_text)
 
     return df
