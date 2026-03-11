@@ -1,11 +1,32 @@
 import torch
 from torch.utils.data import Dataset
 from transformers import Trainer, TrainingArguments
+from transformers import EarlyStoppingCallback
+from transformers import DataCollatorWithPadding
 
 from preprocess import load_data
 from transformer_model import load_transformer_model
 
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, f1_score
+
+import numpy as np
+
+
+def compute_metrics(pred):
+
+    labels = pred.label_ids
+
+    preds = np.argmax(pred.predictions, axis=1)
+
+    acc = accuracy_score(labels, preds)
+
+    f1 = f1_score(labels, preds, average="weighted")
+
+    return {
+        "accuracy": acc,
+        "f1": f1
+    }
 
 
 class SentimentDataset(Dataset):
@@ -16,11 +37,9 @@ class SentimentDataset(Dataset):
         self.labels = labels
         self.tokenizer = tokenizer
 
-
     def __len__(self):
 
         return len(self.texts)
-
 
     def __getitem__(self, idx):
 
@@ -28,18 +47,13 @@ class SentimentDataset(Dataset):
 
         encoding = self.tokenizer(
             text,
-            padding="max_length",
             truncation=True,
-            max_length=128,
-            return_tensors="pt"
+            max_length=256
         )
 
-        return {
+        encoding["labels"] = self.labels[idx]
 
-            "input_ids": encoding["input_ids"].squeeze(),
-            "attention_mask": encoding["attention_mask"].squeeze(),
-            "labels": torch.tensor(self.labels[idx])
-        }
+        return encoding
 
 
 # تحميل البيانات
@@ -55,7 +69,8 @@ X_train, X_test, y_train, y_test = train_test_split(
     texts,
     labels,
     test_size=0.2,
-    random_state=42
+    random_state=42,
+    stratify=labels
 )
 
 
@@ -75,19 +90,24 @@ test_dataset = SentimentDataset(
 )
 
 
+data_collator = DataCollatorWithPadding(tokenizer)
+
+
 training_args = TrainingArguments(
 
     output_dir="./results",
 
-    num_train_epochs=4,
+    num_train_epochs=6,
+
+    learning_rate=2e-5,
 
     per_device_train_batch_size=16,
 
     per_device_eval_batch_size=16,
 
-    learning_rate=2e-5,
+    gradient_accumulation_steps=2,
 
-    warmup_steps=500,
+    warmup_ratio=0.1,
 
     weight_decay=0.01,
 
@@ -96,9 +116,16 @@ training_args = TrainingArguments(
     evaluation_strategy="epoch",
 
     save_strategy="epoch",
- 
-    report_to=[],  # هنا نوقف WandB
 
+    load_best_model_at_end=True,
+
+    metric_for_best_model="f1",
+
+    greater_is_better=True,
+
+    fp16=True,
+
+    logging_steps=100
 )
 
 
@@ -110,7 +137,15 @@ trainer = Trainer(
 
     train_dataset=train_dataset,
 
-    eval_dataset=test_dataset
+    eval_dataset=test_dataset,
+
+    tokenizer=tokenizer,
+
+    data_collator=data_collator,
+
+    compute_metrics=compute_metrics,
+
+    callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
 )
 
 
@@ -120,5 +155,6 @@ trainer.train()
 trainer.save_model("arabert_sentiment_model")
 
 tokenizer.save_pretrained("arabert_sentiment_model")
+
 
 print("Training Finished")
