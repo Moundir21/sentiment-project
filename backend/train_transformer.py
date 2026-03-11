@@ -95,7 +95,10 @@ training_args = TrainingArguments(
 
     evaluation_strategy="epoch",
 
-    save_strategy="epoch"
+    save_strategy="epoch",
+ 
+    report_to=[],  # هنا نوقف WandB
+
 )
 
 
