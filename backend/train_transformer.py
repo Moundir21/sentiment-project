@@ -12,6 +12,8 @@ from sklearn.metrics import accuracy_score, f1_score
 
 import numpy as np
 
+import os
+print(os.getcwd())
 
 def compute_metrics(pred):
 
